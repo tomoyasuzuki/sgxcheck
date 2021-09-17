@@ -1,0 +1,16 @@
+enclave
+{
+	trusted
+	{
+		public void calc_hash([in, string]char *path, [in,size=buf_size]void *buf, size_t buf_size, [out,size=32]uint8_t *dst);
+        public int cmp_hash([in, size=size]uint8_t *old, [in, size=size]uint8_t *new, size_t size);
+		public void init_hash_list();
+		public void get_hash([in, string]char *path, [out, size=32]uint8_t *hash);
+	};
+	untrusted
+	{
+        void o_printf([in, size=size]char *str, int size);
+		void o_printf_d([in, string]char *str, int d);
+		void o_strcat([in,out,size=d_size]char *dst, size_t d_size, [in,size=s_size]char *src, size_t s_size);
+	};
+};
