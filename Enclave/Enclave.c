@@ -72,18 +72,20 @@ int cmp_hash_debug(char *path, uint8_t *new_hash, uint8_t *sealed_hash, uint32_t
 }
 
 void calc_hash(char *path, void *buf, size_t buf_size) {
-    sgx_sha_state_handle_t state = malloc(sizeof(sgx_sha_state_handle_t));
+    sgx_sha_state_handle_t state = NULL;
     sgx_sha256_hash_t hash;
     sgx_status_t err;
     
-    sgx_sha256_init(state);
+    sgx_sha256_init(&state);
 
     err = sgx_sha256_msg(buf, buf_size, &hash);
 
     if (err == SGX_SUCCESS) {
         memcpy(hash_list[get_index(path)].hash, hash, HASH_SIZE);
     } 
+    sgx_sha256_close(state);
 }
+
 
 void calc_hash_debug(char *path, void *buf, size_t buf_size, uint8_t *dst) {
     sgx_sha_state_handle_t state = malloc(sizeof(sgx_sha_state_handle_t));

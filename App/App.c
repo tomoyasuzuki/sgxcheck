@@ -12,7 +12,7 @@
 #include "utils.h"
 #include "sgx_tseal.h"
 
-#define MAX_FILE_NUMS 5
+#define MAX_FILE_NUMS 4
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
@@ -21,11 +21,7 @@ int file_nums = 0;
 char *dir_path = "/usr/bin/";
 char *type = "-c";
 int debug = 0;
-char target_files[MAX_FILE_NUMS][200] = { "/usr/bin/ls", 
-                                          "/usr/bin/ps", 
-                                          "/usr/bin/apt", 
-                                          "/usr/bin/x86_64-linux-gnu-strip", 
-                                          "/usr/bin/utmpdump" };
+char target_files[MAX_FILE_NUMS][200] = { "./test1","./test2","./test3","./test4" };
 
 // ======= utils ==============
 
@@ -179,7 +175,7 @@ void get_file_hash(int i) {
 void get_all_file_hashes() {
     printf("========== Calculating hash value ==========\n");
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < MAX_FILE_NUMS; i++) {
         get_file_hash(i);
     }
 }
@@ -203,10 +199,15 @@ void check_hash(int i) {
         return;
     }
 
+    if (i == 3) {
+        fwrite("hoge", strlen("hoge"), 1, fp);
+        fflush(fp);
+    }
+
     err = get_index(eid, &index, path);
     snprintf(hash_path, 100,"%d", index);
 
-    if ((hash_fp = fopen(hash_path, "r")) == NULL) {
+    if ((hash_fp = fopen(hash_path, "r+")) == NULL) {
         print_with_color(hash_path, "red");
         printf("Failed to open file\n");
         return;
@@ -304,7 +305,7 @@ void check_hash_debug(int i) {
 void check_all_file_hash() {
     printf("========== Checking hash value ==========\n");
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < MAX_FILE_NUMS; i++) {
         if (debug) {
             check_hash_debug(i);
         } else {
@@ -321,9 +322,10 @@ int main(int argc, char **argv) {
     sgx_status_t err;
     if (argc > 1) {
         if (check_param(argv[1])) {
-            exit(1);
+            perror("Paramater Invalid");
         } else {
             type = argv[1];
+
             if (argv[2]) {
                 if (!strcmp(argv[2], "-d")) {
                     debug = 1;
