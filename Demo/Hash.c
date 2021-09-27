@@ -1,110 +1,56 @@
-// #include "Enclave_t.h"
-// #include "string.h"
-// #include "stdio.h"
-// #include "sgx_tcrypto.h"
-// #include "stdlib.h"
-// #include "sgx_tseal.h"
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <openssl/sha.h>
+#include "Hash.h"
 
-// #define TABLE_SIZE 100
-// #define HASH_SIZE 32
-// #define MAX_PATH_LENGTH 200
-// #define MAC "MAC"
+#define TABLE_SIZE 100
+#define HASH_SIZE 16
+#define MAX_PATH_LENGTH 200
+#define MAC "MAC"
 
-// struct hash_data {
-//     uint8_t hash[32];
-// };
+void dump_hash_demo(char *hash, int len) {
+    for (int i = 0; i < len; i++) {
+        printf("%x", hash[i]);
 
-// struct hash_data *hash_list;
+        if (i == (len-1)) {
+            printf("\n");
+        }
+    }
+}
 
-// int unseal_data(uint8_t *sealed_data, uint32_t data_size, uint8_t *unsealed_hash);
-// int get_hash_index(char *str, int table_size);
+int get_hash_index(char *str) {
+    int i = 0;
+    uint64_t sum = 0;
 
-// void untrusted_printf(char *str) {
-//     o_printf(str, strlen(str));
-// }
+    while(str[i] != '\0') {
+        sum += (uint64_t)str[i];
+        i++;
+    }
 
-// int get_index(char *path) {
-//     return get_hash_index(path, TABLE_SIZE);
-// }
+    return sum % TABLE_SIZE;
+}
 
-// // Generate hash_list index
-// int get_hash_index(char *str, int table_size) {
-//     int i = 0;
-//     uint64_t sum = 0;
+int cmp_hash(char *data, size_t dsize, void *old_hash) {
+    SHA256_CTX *ctx;
 
-//     while(str[i] != '\0') {
-//         sum += (uint64_t)str[i];
-//         i++;
-//     }
+    SHA256_Init(ctx);
+    SHA256_Update(ctx, data, dsize);
 
-//     return sum % table_size;
-// }
+    return !memcmp(old_hash, ctx->data, HASH_SIZE) ? 1 : 0; 
+}
 
-// // Check hash value
-// void init_hash_list() {
-//     hash_list = malloc(sizeof(struct hash_data) * TABLE_SIZE);
-// }
+int calc_hash(void *data, size_t dsize, int type) {
+    SHA256_CTX ctx;
+    unsigned char hash[SHA384_DIGEST_LENGTH];
+    //char *hash = malloc(100);
+    SHA256_Init(&ctx);
+    SHA256_Update(&ctx, data, dsize);
+    SHA256_Final(hash, &ctx);
+    //SHA256(data, dsize, hash);
+    printf("HASH: ");
+    dump_hash_demo(hash, SHA256_DIGEST_LENGTH);
 
-// int cmp_hash(char *path, uint8_t *sealed_hash, size_t sh_size) {
-//     uint8_t new_hash[HASH_SIZE];
-//     uint8_t old_hash[HASH_SIZE];
-
-//     memcpy(new_hash, hash_list[get_index(path)].hash, HASH_SIZE);
-
-//     if (!unseal_data(sealed_hash, sh_size, old_hash)) {
-//         untrusted_printf("Failed to unseal hash\n");
-//         return 0;
-//     }
-
-//     return !memcmp(new_hash, old_hash, HASH_SIZE) ? 1 : 0; 
-// }
-
-// // Check hash value
-// int cmp_hash_debug(char *path, uint8_t *new_hash, uint8_t *sealed_hash, uint32_t sh_size) {
-//     uint8_t *old_hash = malloc(HASH_SIZE);
-
-//     if (!unseal_data(sealed_hash, sh_size, old_hash)) {
-//         untrusted_printf("Failed to unseal hash\n");
-//         return 0;
-//     }
-
-//     return  !memcmp(new_hash, old_hash, HASH_SIZE) ? 1 : 0;
-// }
-
-// void calc_hash(char *path, void *buf, size_t buf_size) {
-//     sgx_sha_state_handle_t state = NULL;
-//     sgx_sha256_hash_t hash;
-//     sgx_status_t err;
-    
-//     sgx_sha256_init(&state);
-
-//     err = sgx_sha256_msg(buf, buf_size, &hash);
-
-//     if (err == SGX_SUCCESS) {
-//         memcpy(hash_list[get_index(path)].hash, hash, HASH_SIZE);
-//     } 
-//     sgx_sha256_close(state);
-// }
-
-
-// void calc_hash_debug(char *path, void *buf, size_t buf_size, uint8_t *dst) {
-//     sgx_sha_state_handle_t state = malloc(sizeof(sgx_sha_state_handle_t));
-//     sgx_sha256_hash_t hash;
-//     sgx_status_t err;
-    
-//     sgx_sha256_init(state);
-
-//     err = sgx_sha256_msg(buf, buf_size, &hash);
-
-//     if (err == SGX_SUCCESS) {
-//         memcpy(dst, hash, HASH_SIZE);
-//         memcpy(hash_list[get_index(path)].hash, hash, HASH_SIZE);
-//     } else {
-//         untrusted_printf("Failed to calculate hash\n");
-//     }
-// }
-
-// void get_hash(char *path, uint8_t *hash) {
-//     int index = get_hash_index(path, TABLE_SIZE);
-//     memcpy(hash, hash_list[index].hash, HASH_SIZE);
-// }
+    return 1;
+}
