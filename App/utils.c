@@ -5,7 +5,7 @@
 void dump_hash(uint8_t *hash) {
     for (int i = 0; i < 32; i++) {
         printf("%x", hash[i]);
-
+        
         if (i == 31) {
             printf("\n");
         }

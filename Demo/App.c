@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "Hash.h"
 
 #define MAX_FILE_NUMS 4
@@ -51,12 +52,18 @@ void get_file_hash(int i) {
 
     fread(buf, st.st_size, 1, fp);
 
-    err = calc_hash(buf, st.st_size, debug);
+    err = calc_hash(path, buf, st.st_size, debug);
 
     fclose(fp);
     free(buf);
 
     return;
+}
+
+void interval(double num) {
+    clock_t t;
+    t = num * CLOCKS_PER_SEC + clock();
+    while(t > clock());
 }
 
 void get_all_file_hashes() {
@@ -86,6 +93,12 @@ void check_hash(int i) {
     // Open hash file
     get_hash_file_path(path, hash_path);
 
+    if ((hash_fp = fopen(hash_path, "r")) == NULL) {
+        print_with_color(hash_path, "red");
+        printf("Failed to open file\n");
+        return;
+    }
+
     // Get File size
     stat(path, &st);
     stat(hash_path, &hash_st);
@@ -107,6 +120,7 @@ void check_hash(int i) {
     }
     
     fclose(fp);
+    fclose(hash_fp);
     free(file_buf);
 
     return;
@@ -142,6 +156,10 @@ int main(int argc, char **argv) {
 
     if (!strcmp(type, "-i")) {
         get_all_file_hashes();
+        for (;;) {
+            interval(3);
+            check_all_file_hash();
+        }
     } else if (!strcmp(type, "-c")) {
         check_all_file_hash();
     } else {

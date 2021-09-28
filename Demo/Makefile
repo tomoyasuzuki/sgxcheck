@@ -7,4 +7,4 @@ demo: App.o Hash.o
 	@echo "LINK =>  demo"
 	
 democ:
-	@rm -f App.o Hash.o demo
+	@rm -f App.o Hash.o demo 90 91 92 93

@@ -10,12 +10,13 @@
 #define MAX_PATH_LENGTH 200
 #define MAC "MAC"
 
-void dump_hash_demo(char *hash, int len) {
-    for (int i = 0; i < len; i++) {
+void dump_hash_demo(unsigned char *hash) {
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         printf("%x", hash[i]);
 
-        if (i == (len-1)) {
+        if (i == (SHA256_DIGEST_LENGTH - 1)) {
             printf("\n");
+            break;
         }
     }
 }
@@ -33,24 +34,55 @@ int get_hash_index(char *str) {
 }
 
 int cmp_hash(char *data, size_t dsize, void *old_hash) {
-    SHA256_CTX *ctx;
-
-    SHA256_Init(ctx);
-    SHA256_Update(ctx, data, dsize);
-
-    return !memcmp(old_hash, ctx->data, HASH_SIZE) ? 1 : 0; 
-}
-
-int calc_hash(void *data, size_t dsize, int type) {
     SHA256_CTX ctx;
-    unsigned char hash[SHA384_DIGEST_LENGTH];
-    //char *hash = malloc(100);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+
     SHA256_Init(&ctx);
     SHA256_Update(&ctx, data, dsize);
     SHA256_Final(hash, &ctx);
-    //SHA256(data, dsize, hash);
-    printf("HASH: ");
-    dump_hash_demo(hash, SHA256_DIGEST_LENGTH);
+
+    return !memcmp(old_hash, hash, SHA256_DIGEST_LENGTH) ? 1 : 0; 
+}
+
+void save_hash(char *path, unsigned char *hash) {
+    FILE *fp;
+    size_t wsize;
+    char fullpath[100];
+    snprintf(fullpath, 100, "%d", get_hash_index(path));
+
+    if ((fp = fopen(fullpath, "w")) == NULL) {
+        perror("Error");
+        return;
+    }
+
+    if ((wsize = fwrite(hash, SHA256_DIGEST_LENGTH, 1, fp)) < 1) {
+        perror("Error");
+        return;
+    }
+
+    printf("Successed to save hash file.\n");
+
+    fclose(fp);
+
+    return;
+}
+
+int calc_hash(char *path, void *data, size_t dsize, int type) {
+    SHA256_CTX ctx;
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+
+    SHA256_Init(&ctx);
+    SHA256_Update(&ctx, data, dsize);
+    SHA256_Final(hash, &ctx);
+
+    if (type) {
+        printf("%s: ", path);
+        dump_hash_demo(hash);
+    } else {
+        printf("Successed to calculate hash.\n");
+    }
+
+    save_hash(path, hash);
 
     return 1;
 }
