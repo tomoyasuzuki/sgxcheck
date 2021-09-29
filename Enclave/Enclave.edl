@@ -3,9 +3,9 @@ enclave
 	trusted
 	{
 		public void calc_hash_debug([in, string]char *path, [in,size=buf_size]void *buf, size_t buf_size, [out,size=32]uint8_t *dst);
-		public void calc_hash([in, string]char *path, [in,size=buf_size]void *buf, size_t buf_size, [out, size=dst_size]void *dst, uint32_t dst_size);
+		public int calc_hash([in, string]char *path, [in,size=buf_size]void *buf, size_t buf_size, [out, size=dst_size]void *dst, uint32_t dst_size);
         public int cmp_hash_debug([in, string]char *path, [in, size=32]uint8_t *new_hash, [in, size=sh_size]uint8_t *sealed_hash, uint32_t sh_size);
-		public int cmp_hash([in, string]char *path, [in, size=sh_size]uint8_t *sealed_hash, size_t sh_size);
+		public int cmp_hash([in, size=dsize]void *data, size_t dsize, [in, size=sh_size]uint8_t *sealed_hash, size_t sh_size);
 		public void get_hash([in, string]char *path, [out, size=32]uint8_t *hash);
 		public uint32_t get_sealed_data_size();
 		public int get_index([in,string]char *path);
@@ -13,5 +13,6 @@ enclave
 	untrusted
 	{
         void o_printf([in, size=size]char *str, int size);
+		void ocall_dump_hash([in, size=32]uint8_t *hash); 
 	};
 };

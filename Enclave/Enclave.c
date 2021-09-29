@@ -12,6 +12,7 @@
 
 int unseal_data(uint8_t *sealed_data, uint32_t data_size, uint8_t *unsealed_hash);
 int get_hash_index(char *str, int table_size);
+int sgx_sha256_calc(void *data, size_t dsize, uint8_t *dst);
 
 void untrusted_printf(char *str) {
     o_printf(str, strlen(str));
@@ -34,18 +35,19 @@ int get_hash_index(char *str, int table_size) {
     return sum % table_size;
 }
 
-int cmp_hash(char *path, uint8_t *sealed_hash, size_t sh_size) {
+int cmp_hash(void *data, size_t dsize , uint8_t *sealed_hash, size_t sh_size) {
     uint8_t new_hash[HASH_SIZE];
     uint8_t old_hash[HASH_SIZE];
 
-    //memcpy(new_hash, hash_list[get_index(path)].hash, HASH_SIZE);
+    if (sgx_sha256_calc(data, dsize, &(new_hash[0])) < 0)
+        return -1;
 
-    if (!unseal_data(sealed_hash, sh_size, old_hash)) {
-        untrusted_printf("Failed to unseal hash\n");
-        return 0;
+    if (!unseal_data(sealed_hash, sh_size, &(old_hash[0]))) {
+        return -1;
     }
 
-    return !memcmp(new_hash, old_hash, HASH_SIZE) ? 1 : 0; 
+    // TODO: fix allways return -1 bug
+    return !memcmp(new_hash, old_hash, HASH_SIZE) ? 1 : -1; 
 }
 
 // Check hash value
@@ -60,28 +62,51 @@ int cmp_hash_debug(char *path, uint8_t *new_hash, uint8_t *sealed_hash, uint32_t
     return  !memcmp(new_hash, old_hash, HASH_SIZE) ? 1 : 0;
 }
 
-void calc_hash(char *path, void *buf, size_t buf_size, void *dst, uint32_t dst_size) {
+int sgx_sha256_calc(void *data, size_t dsize, uint8_t *dst) {
     sgx_sha_state_handle_t state = NULL;
     sgx_sha256_hash_t hash;
     sgx_status_t err;
-    uint32_t mac_size;
 
-    if (buf == NULL | dst == NULL)
-        return;
-    
-    sgx_sha256_init(&state);
-    if ((err = sgx_sha256_msg(buf, buf_size, &hash) != SGX_SUCCESS))
-        return; 
-    sgx_sha256_close(state);
+    if ((err = sgx_sha256_init(&state)) != SGX_SUCCESS) 
+        return -1;
 
-    if ((err = sgx_seal_data(mac_size,
+    if ((err = sgx_sha256_msg(data, dsize, (sgx_sha256_hash_t*)dst) != SGX_SUCCESS))
+        return -1; 
+
+    if ((err = sgx_sha256_close(state)) != SGX_SUCCESS)
+        return -1;
+
+    return 1;
+}
+
+int seal_hash(void *src, void *dst) {
+    sgx_status_t err;
+
+    if ((err = sgx_seal_data(strlen(MAC),
                             (const uint8_t *)MAC,
                             HASH_SIZE,
-                            (const uint8_t *)hash,
-                            sgx_calc_sealed_data_size(mac_size, HASH_SIZE),
+                            (const uint8_t *)src,
+                            sgx_calc_sealed_data_size(strlen(MAC), HASH_SIZE),
                             (sgx_sealed_data_t *)dst) != SGX_SUCCESS)) {
-        return;
+        return -1;
     }
+
+    return 1;
+}
+
+int calc_hash(char *path, void *buf, size_t buf_size, void *dst, uint32_t dst_size) {
+    uint8_t hash[HASH_SIZE];
+
+    if (path == NULL | buf == NULL | dst == NULL)
+        return -1;
+    
+    if (sgx_sha256_calc(buf, buf_size, (uint8_t*)&(hash[0])) < 0)
+        return -1;
+
+    if (seal_hash((void*)&(hash[0]), dst) < 0)
+        return -1;
+
+    return 1;
 }
 
 

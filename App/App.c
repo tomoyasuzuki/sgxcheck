@@ -13,7 +13,7 @@
 #include "utils.h"
 #include "sgx_tseal.h"
 
-#define MAX_FILE_NUMS 1000
+#define MAX_FILE_NUMS 5
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
@@ -27,7 +27,11 @@ char target_files[MAX_FILE_NUMS][200];
 // ======= utils ==============
 
 void o_printf(char *str, int size) {
-    printf(str);
+    printf("%s", str);
+}
+
+void ocall_dump_hash(uint8_t *hash) {
+    dump_hash(hash);
 }
 
 // ======= enclave ops ========
@@ -101,6 +105,7 @@ void get_file_hash(int i) {
     uint32_t sealed_buf_size;
     uint8_t *sealed_buf;
     sgx_status_t err;
+    int retval;
     size_t wsize;
     char *path;
     int index;
@@ -135,7 +140,7 @@ void get_file_hash(int i) {
             return;
         }
     } else {
-        if ((err = calc_hash(eid, path, buf, f_size, sealed_buf, sealed_buf_size)) != SGX_SUCCESS) {
+        if ((err = calc_hash(eid, &retval, path, buf, f_size, sealed_buf, sealed_buf_size)) != SGX_SUCCESS) {
             print_error_with_path(path, "Failed to calculate hash value\n");
             return;
         }
@@ -163,6 +168,9 @@ void get_file_hash(int i) {
     snprintf(hash_path, 100, "%d", index);
     strcat(hash_path, path);
 
+    if (debug)
+        goto  clean;
+
     if ((sealed_hash_fp = fopen(hash_path, "w")) == NULL) {
         print_with_color(path, "red");
         printf("Failed to create sealed_hash_file\n");
@@ -173,8 +181,9 @@ void get_file_hash(int i) {
         printf("Failed to write sealed_hash\n");
     }
 
-    fclose(fp);
-    free(buf);
+    clean:
+        fclose(fp);
+        free(buf);
 
     return;
 }
@@ -190,59 +199,70 @@ void get_all_file_hashes() {
 void check_hash(int i) {
     sgx_status_t err;
     FILE *fp, *hash_fp;
-    struct stat fpst,hash_fpst;
+    size_t f_size, hashf_size;
     char *path = target_files[i];
     int index;
     char hash_path[100];
     void *file_buf;
-    uint8_t new_hash[HASH_SIZE];
     uint8_t *sealed_hash;
     uint32_t sealed_data_size;
-    int cmp_err;
+    int retval;
 
     if ((fp = fopen(path, "r")) == NULL) {
-        print_with_color(path, "red");
-        printf("Failed to open file\n");
+        print_error_with_path(path, "Failed to open file\n");
         return;
     }
 
-    err = get_index(eid, &index, path);
+    if ((err = get_index(eid, &index, path)) != SGX_SUCCESS) {
+        print_error_with_path(path, "Failed to get index\n");
+        return;
+    }
+
+    // Generate encryped hash file path
     snprintf(hash_path, 100,"%d", index);
     strcat(hash_path, path);
 
-    if ((hash_fp = fopen(hash_path, "r+")) == NULL) {
-        print_with_color(hash_path, "red");
-        printf("Failed to open file\n");
+    if ((hash_fp = fopen(hash_path, "r")) == NULL) {
+        print_error_with_path(hash_path, "Failed to open file\n");
         return;
     }
 
-    stat(path, &fpst);
-    stat(hash_path, &hash_fpst);
+    f_size = get_file_size(path);
+    hashf_size = get_file_size(hash_path);
     
-    if (fpst.st_size > MAX_FILE_SIZE) {
-        printf("%s: File size is too big ...\n", path); 
-        fclose(fp);
+    file_buf = malloc(f_size);
+    sealed_hash = malloc(hashf_size);
+
+    if (fread(file_buf, f_size, 1, fp) < 1) {
+        print_error_with_path(path, "Failed to open file\n");
         return;
     }
     
-    file_buf = malloc(fpst.st_size);
-    sealed_hash = malloc(hash_fpst.st_size);
+    if (fread(sealed_hash, hashf_size, 1, hash_fp) < 1) {
+        print_error_with_path(hash_path, "Failed to open file\n");
+        return;
+    }
 
-    fread(file_buf, fpst.st_size, 1, fp);
-    fread(sealed_hash, hash_fpst.st_size, 1, hash_fp);
+    // Compare hash value
+    if ((err = cmp_hash(eid, 
+                        &retval, 
+                        file_buf, 
+                        f_size, 
+                        sealed_hash, 
+                        hashf_size) != SGX_SUCCESS)) {
+        print_error_with_path(path, "Failed to compare hash value\n");
+        return;
+    }
 
-    //err = calc_hash(eid, path, file_buf, fpst.st_size);
-    err = cmp_hash(eid, &cmp_err, path, sealed_hash, (uint32_t)hash_fpst.st_size);
-
-    if (cmp_err) {
+    if (retval != -1) {
         print_with_color(path, "green");
         printf("File not broken.\n");
     } else {
-        print_with_color(path, "red");
-        printf("File broken!!\n");
+        print_error_with_path(path, "File broken!!\n");
     }
 
     free(file_buf);
+    free(sealed_hash);
     fclose(fp);
     fclose(hash_fp);
 
