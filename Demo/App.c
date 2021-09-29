@@ -9,15 +9,14 @@
 #include <time.h>
 #include "Hash.h"
 
-#define MAX_FILE_NUMS 4
+#define MAX_FILE_NUMS 1000
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
 int file_nums = 0;
-char *dir_path = "/usr/bin/";
 char *type = "-c";
 int debug = 0;
-char target_files[MAX_FILE_NUMS][200] = { "./test1","./test2","./test3","./test4" };
+char target_files[MAX_FILE_NUMS][200];
 
 void print_with_color(char *str, char *color) {
     if (!strcmp(color, "red")) {
@@ -32,6 +31,7 @@ void print_with_color(char *str, char *color) {
 void get_hash_file_path(char *path, char *hash_path) {
     int index = get_hash_index(path);
     snprintf(hash_path, 100, "%d", index);
+    strcat(hash_path, path);
 }
 
 void get_file_hash(int i) {
@@ -138,8 +138,24 @@ int check_param(char *param) {
     return (strcmp(param, "-i") && strcmp(param, "-c"));
 }
 
+void create_dummy_files() {
+    for (int i = 0; i < 1000; i++) {
+        char path[100] = "demo";
+        char num[5];
+        snprintf(num, 5, "%d", i);
+        strcat(path, num);
+
+        FILE *fp = fopen(path, "w");
+        fwrite(path, strlen(path), 1, fp);
+        fclose(fp);
+        memcpy(target_files[i], path, strlen(path));
+    }
+}
+
 int main(int argc, char **argv) {
     int err;
+    double time;
+
     if (argc > 1) {
         if (check_param(argv[1])) {
             perror("Paramater Invalid");
@@ -154,17 +170,28 @@ int main(int argc, char **argv) {
         }
     }
 
+    create_dummy_files();
+
     if (!strcmp(type, "-i")) {
         get_all_file_hashes();
-        for (;;) {
-            interval(3);
-            check_all_file_hash();
-        }
     } else if (!strcmp(type, "-c")) {
         check_all_file_hash();
     } else {
         perror("Paramater Invalid");
     }
 
+    time = clock();
+    FILE *timelog;
+    timelog = fopen("demolog.txt", "a");
+    if (timelog == NULL) {
+        timelog = fopen("demolog.txt", "w");
+    }
+    char out[100] = "";
+    char timestr[20];
+    snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
+    strcat(timestr, " + ");
+    strcat(out, timestr);
+    fwrite(out, strlen(out), 1, timelog);
+    fclose(timelog);
     return 0;
 }

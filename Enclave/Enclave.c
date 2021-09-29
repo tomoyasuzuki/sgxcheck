@@ -5,7 +5,7 @@
 #include "stdlib.h"
 #include "sgx_tseal.h"
 
-#define TABLE_SIZE 100
+#define TABLE_SIZE 1000
 #define HASH_SIZE 32
 #define MAX_PATH_LENGTH 200
 #define MAC "MAC"
@@ -84,6 +84,7 @@ void calc_hash(char *path, void *buf, size_t buf_size) {
         memcpy(hash_list[get_index(path)].hash, hash, HASH_SIZE);
     } 
     sgx_sha256_close(state);
+    return;
 }
 
 

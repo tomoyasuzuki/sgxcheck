@@ -76,4 +76,4 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@echo "SIGN =>  $@"
 
 clean:
-	@rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) App/*.o App/Enclave_u.* Enclave/Enclave.o Enclave/Enclave_t.* 90 91 92 93
+	@rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) App/*.o App/Enclave_u.* Enclave/Enclave.o Enclave/Enclave_t.* 0* 1* 2* 3* 4* 5* 6* 7* 8* 9* test*

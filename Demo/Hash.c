@@ -49,6 +49,7 @@ void save_hash(char *path, unsigned char *hash) {
     size_t wsize;
     char fullpath[100];
     snprintf(fullpath, 100, "%d", get_hash_index(path));
+    strcat(fullpath, path);
 
     if ((fp = fopen(fullpath, "w")) == NULL) {
         perror("Error");
@@ -60,6 +61,7 @@ void save_hash(char *path, unsigned char *hash) {
         return;
     }
 
+    printf("%s: ", path);
     printf("Successed to save hash file.\n");
 
     fclose(fp);
@@ -79,6 +81,7 @@ int calc_hash(char *path, void *data, size_t dsize, int type) {
         printf("%s: ", path);
         dump_hash_demo(hash);
     } else {
+        printf("%s: ", path);
         printf("Successed to calculate hash.\n");
     }
 

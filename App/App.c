@@ -8,11 +8,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sgx_urts.h>
+#include <time.h>
 #include <dirent.h>
 #include "utils.h"
 #include "sgx_tseal.h"
 
-#define MAX_FILE_NUMS 4
+#define MAX_FILE_NUMS 1000
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
@@ -21,7 +22,7 @@ int file_nums = 0;
 char *dir_path = "/usr/bin/";
 char *type = "-c";
 int debug = 0;
-char target_files[MAX_FILE_NUMS][200] = { "./test1","./test2","./test3","./test4" };
+char target_files[MAX_FILE_NUMS][200];
 
 // ======= utils ==============
 
@@ -154,6 +155,7 @@ void get_file_hash(int i) {
     err = get_index(eid, &index, path);
 
     snprintf(hash_path, 100, "%d", index);
+    strcat(hash_path, path);
 
     if ((sealed_hash_fp = fopen(hash_path, "w")) == NULL) {
         print_with_color(path, "red");
@@ -199,13 +201,9 @@ void check_hash(int i) {
         return;
     }
 
-    if (i == 3) {
-        fwrite("hoge", strlen("hoge"), 1, fp);
-        fflush(fp);
-    }
-
     err = get_index(eid, &index, path);
     snprintf(hash_path, 100,"%d", index);
+    strcat(hash_path, path);
 
     if ((hash_fp = fopen(hash_path, "r+")) == NULL) {
         print_with_color(hash_path, "red");
@@ -318,8 +316,23 @@ int check_param(char *param) {
     return (strcmp(param, "-i") && strcmp(param, "-c"));
 }
 
+void create_dummy_files() {
+    for (int i = 0; i < MAX_FILE_NUMS; i++) {
+        char path[100] = "test";
+        char num[5];
+        snprintf(num, 5, "%d", i);
+        strcat(path, num);
+
+        FILE *fp = fopen(path, "w");
+        fwrite(path, strlen(path), 1, fp);
+        fclose(fp);
+        memcpy(target_files[i], path, strlen(path));
+    }
+}
+
 int main(int argc, char **argv) {
     sgx_status_t err;
+    double time;
     if (argc > 1) {
         if (check_param(argv[1])) {
             perror("Paramater Invalid");
@@ -335,6 +348,7 @@ int main(int argc, char **argv) {
     }
 
     init_enclave();
+    create_dummy_files();
 
     if ((err = init_hash_list(eid)) != SGX_SUCCESS) {
         print_with_color("SGX_ERROR: ", "red");
@@ -350,5 +364,18 @@ int main(int argc, char **argv) {
         perror("Paramater Invalid");
     }
 
+    time = clock();
+    FILE *timelog;
+    timelog = fopen("Demo/demolog.txt", "a");
+    if (timelog == NULL) {
+        timelog = fopen("demolog.txt", "w");
+    }
+    char out[100] = "";
+    char timestr[20];
+    snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
+    strcat(timestr, " + ");
+    strcat(out, timestr);
+    fwrite(out, strlen(out), 1, timelog);
+    fclose(timelog);
     return 0;
 }
