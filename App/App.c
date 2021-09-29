@@ -82,44 +82,64 @@ void  get_all_files(char *path) {
     }
 }
 
+void print_error_with_path(char *path, char *msg) {
+    print_with_color(path, "red");
+    printf("%s", msg);
+}
+
+size_t get_file_size(char *path) {
+    struct stat st;
+    stat(path, &st);
+    return (size_t)st.st_size;
+}
+
 void get_file_hash(int i) {
     FILE *fp, *sealed_hash_fp;
-    struct stat st;
-    void *buf;
-    uint8_t hash[32];
-    uint8_t old_hash[32];
-    uint32_t sealed_data_size;
+    size_t f_size;
+    uint8_t hash[HASH_SIZE];
+    uint8_t old_hash[HASH_SIZE];
+    uint32_t sealed_buf_size;
     uint8_t *sealed_buf;
-    int seal_err;
     sgx_status_t err;
-    char *path = target_files[i];
+    size_t wsize;
+    char *path;
+    int index;
+    char hash_path[100];
+    void *buf;
+
+    path = target_files[i];
 
     if ((fp = fopen(path,  "r")) == NULL) {
-        print_with_color(path, "red");
-        printf("Failed to open file\n");
-        perror("error");
+        print_error_with_path(path, "Failed to open file\n");
         return;
     }
 
-    stat(path, &st);
-    buf = malloc(st.st_size);
+    f_size = get_file_size(path);
+    buf = malloc(f_size);
 
-    fread(buf, st.st_size, 1, fp);
+    if (fread(buf, f_size, 1, fp) < 1) {
+        print_error_with_path(path, "Failed to read file\n");
+        return;
+    }
+
+    if ((err = get_sealed_data_size(eid, &sealed_buf_size)) != SGX_SUCCESS) {
+        print_error_with_path(path, "Failed to get sealed data size\n");
+        return;
+    }
+
+    sealed_buf = (uint8_t*)malloc(sealed_buf_size);
 
     if (debug) {
-        if ((err = calc_hash_debug(eid, path, buf, st.st_size, hash)) != SGX_SUCCESS) {
-            print_with_color(path, "red");
-            printf("Failed to calculate hash value, code=%x\n", err);
+        if ((err = calc_hash_debug(eid, path, buf, f_size, hash)) != SGX_SUCCESS) {
+            print_error_with_path(path, "Failed to calculate hash value\n");
             return;
         }
     } else {
-        if ((err = calc_hash(eid, path, buf, st.st_size)) != SGX_SUCCESS) {
-            print_with_color(path, "red");
-            printf("Failed to calculate hash value, code=%x\n", err);
+        if ((err = calc_hash(eid, path, buf, f_size, sealed_buf, sealed_buf_size)) != SGX_SUCCESS) {
+            print_error_with_path(path, "Failed to calculate hash value\n");
             return;
         }
     }
-    
 
     if (err == SGX_SUCCESS) {
         if (debug)
@@ -137,22 +157,8 @@ void get_file_hash(int i) {
         printf("Failed to get hash, error code=%x\n", err);
     }
 
-    if ((err = get_sealed_data_size(eid, &sealed_data_size, path)) != SGX_SUCCESS) {
-        print_with_color(path, "red");
-        printf("Failed to get sealed data size, code=%x\n", err);
-    }
-
-    sealed_buf = malloc(sealed_data_size);
-
-    if ((err = seal_data(eid, &seal_err, path, sealed_buf, sealed_data_size)) != SGX_SUCCESS) {
-        print_with_color(path, "red");
-        printf("Failed to get sealed data size, code=%x\n", err);
-    }
-
-    int index = 0;
-    char hash_path[100];
-
-    err = get_index(eid, &index, path);
+    if ((err = get_index(eid, &index, path)) != SGX_SUCCESS) 
+        return;
 
     snprintf(hash_path, 100, "%d", index);
     strcat(hash_path, path);
@@ -162,8 +168,7 @@ void get_file_hash(int i) {
         printf("Failed to create sealed_hash_file\n");
     }
 
-    size_t wsize = fwrite(sealed_buf, sealed_data_size, 1, sealed_hash_fp);
-    if (wsize < 1) {
+    if ((wsize = fwrite(sealed_buf, sealed_buf_size, 1, sealed_hash_fp)) < 1) {
         print_with_color(path, "red");
         printf("Failed to write sealed_hash\n");
     }
@@ -226,7 +231,7 @@ void check_hash(int i) {
     fread(file_buf, fpst.st_size, 1, fp);
     fread(sealed_hash, hash_fpst.st_size, 1, hash_fp);
 
-    err = calc_hash(eid, path, file_buf, fpst.st_size);
+    //err = calc_hash(eid, path, file_buf, fpst.st_size);
     err = cmp_hash(eid, &cmp_err, path, sealed_hash, (uint32_t)hash_fpst.st_size);
 
     if (cmp_err) {
@@ -349,12 +354,6 @@ int main(int argc, char **argv) {
 
     init_enclave();
     create_dummy_files();
-
-    if ((err = init_hash_list(eid)) != SGX_SUCCESS) {
-        print_with_color("SGX_ERROR: ", "red");
-        printf("Failed to init hash table, code=%x\n", err);
-        exit(1);
-    }
 
     if (!strcmp(type, "-i")) {
         get_all_file_hashes();
