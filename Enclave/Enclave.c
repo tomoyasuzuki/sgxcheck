@@ -96,7 +96,6 @@ void calc_hash_debug(char *path, void *buf, size_t buf_size, uint8_t *dst) {
 
     if (err == SGX_SUCCESS) {
         memcpy(dst, hash, HASH_SIZE);
-        //memcpy(hash_list[get_index(path)].hash, hash, HASH_SIZE);
     } else {
         untrusted_printf("Failed to calculate hash\n");
     }
