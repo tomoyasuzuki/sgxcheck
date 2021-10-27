@@ -9,7 +9,7 @@
 #include <time.h>
 #include "Hash.h"
 
-#define MAX_FILE_NUMS 1000
+#define MAX_FILE_NUMS 2000
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
@@ -139,7 +139,7 @@ int check_param(char *param) {
 }
 
 void create_dummy_files() {
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < MAX_FILE_NUMS; i++) {
         char path[100] = "demo";
         char num[5];
         snprintf(num, 5, "%d", i);

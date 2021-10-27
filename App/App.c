@@ -13,13 +13,12 @@
 #include "utils.h"
 #include "sgx_tseal.h"
 
-#define MAX_FILE_NUMS 5
+#define MAX_FILE_NUMS 10
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
 sgx_enclave_id_t eid = 100;
 int file_nums = 0;
-char *dir_path = "/usr/bin/";
 char *type = "-c";
 int debug = 0;
 char target_files[MAX_FILE_NUMS][200];
@@ -136,7 +135,7 @@ void get_file_hash(int i) {
 
     if (debug) {
         if ((err = calc_hash_debug(eid, path, buf, f_size, hash)) != SGX_SUCCESS) {
-            print_error_with_path(path, "Failed to calculate hash value\n");
+            print_error_with_path(path, "[DEBUG]Failed to calculate hash value\n");
             return;
         }
     } else {
@@ -184,6 +183,7 @@ void get_file_hash(int i) {
     clean:
         fclose(fp);
         free(buf);
+        free(sealed_buf);
 
     return;
 }
@@ -218,7 +218,6 @@ void check_hash(int i) {
         return;
     }
 
-    // Generate encryped hash file path
     snprintf(hash_path, 100,"%d", index);
     strcat(hash_path, path);
 
@@ -243,7 +242,6 @@ void check_hash(int i) {
         return;
     }
 
-    // Compare hash value
     if ((err = cmp_hash(eid, 
                         &retval, 
                         file_buf, 
@@ -344,15 +342,23 @@ int check_param(char *param) {
 void create_dummy_files() {
     for (int i = 0; i < MAX_FILE_NUMS; i++) {
         char path[100] = "test";
-        char num[5];
-        snprintf(num, 5, "%d", i);
+        char num[20];
+        snprintf(num, 6, "%d", i);
         strcat(path, num);
 
         FILE *fp = fopen(path, "w");
-        fwrite(path, strlen(path), 1, fp);
+        
+        for (int j = 0; j < (1024 * 205); j++) {
+            fwrite(path, strlen(path), 1, fp);
+        }
+
         fclose(fp);
         memcpy(target_files[i], path, strlen(path));
     }
+}
+
+int init_conf_file() {
+    
 }
 
 int main(int argc, char **argv) {
@@ -383,18 +389,18 @@ int main(int argc, char **argv) {
         perror("Paramater Invalid");
     }
 
-    time = clock();
-    FILE *timelog;
-    timelog = fopen("Demo/demolog.txt", "a");
-    if (timelog == NULL) {
-        timelog = fopen("demolog.txt", "w");
-    }
-    char out[100] = "";
-    char timestr[20];
-    snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
-    strcat(timestr, " + ");
-    strcat(out, timestr);
-    fwrite(out, strlen(out), 1, timelog);
-    fclose(timelog);
+    // time = clock();
+    // FILE *timelog;
+    // timelog = fopen("Demo/demolog.txt", "a");
+    // if (timelog == NULL) {
+    //     timelog = fopen("demolog.txt", "w");
+    // }
+    // char out[100] = "";
+    // char timestr[20];
+    // snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
+    // strcat(timestr, " + ");
+    // strcat(out, timestr);
+    // fwrite(out, strlen(out), 1, timelog);
+    // fclose(timelog);
     return 0;
 }
