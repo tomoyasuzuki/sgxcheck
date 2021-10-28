@@ -22,6 +22,7 @@ sgx_enclave_id_t eid = 100;
 
 char *type = "-c";
 int debug = 0;
+int test = 0;
 int file_nums = 0;
 char target_files[MAX_FILE_NUMS][MAX_FILE_NAME_LENGTH];
 
@@ -359,17 +360,22 @@ int main(int argc, char **argv) {
             exit(1);
         } else {
             type = argv[1];
+            file_nums = atoi(argv[2]);
 
-            if (argv[2]) {
-                if (!strcmp(argv[2], "-d")) {
+            if (argv[3]) {
+                if (!strcmp(argv[3], "-d")) {
                     debug = 1;
-                } else {
-                    file_nums = atoi(argv[2]);
+                } else if (!strcmp(argv[3], "-t")) {
+                    test = 1;
                 }
             }
 
-            if (argv[3]) {
-                file_nums = atoi(argv[3]);
+            if (argv[4]) {
+                if (!strcmp(argv[3], "-d")) {
+                    debug = 1;
+                } else if (!strcmp(argv[3], "-t")) {
+                    test = 1;
+                }
             }
         }
     }
@@ -385,7 +391,7 @@ int main(int argc, char **argv) {
         perror("Paramater Invalid");
     }
 
-    if (debug) {
+    if (test) {
         evaluate_elapsed_time(&time);
         dump_elapsed_time(time);
     }

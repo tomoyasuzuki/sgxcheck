@@ -9,13 +9,14 @@
 #include <time.h>
 #include "Hash.h"
 
-#define MAX_FILE_NUMS 2000
+#define MAX_FILE_NUMS 1000
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
 int file_nums = 0;
 char *type = "-c";
 int debug = 0;
+int test = 0;
 char target_files[MAX_FILE_NUMS][200];
 
 void print_with_color(char *str, char *color) {
@@ -69,7 +70,7 @@ void interval(double num) {
 void get_all_file_hashes() {
     printf("========== Calculating hash value ==========\n");
 
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
+    for (int i = 0; i < file_nums; i++) {
         get_file_hash(i);
     }
 }
@@ -129,7 +130,7 @@ void check_hash(int i) {
 void check_all_file_hash() {
     printf("========== Checking hash value ==========\n");
 
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
+    for (int i = 0; i < file_nums; i++) {
         check_hash(i);
     }
 }
@@ -138,18 +139,40 @@ int check_param(char *param) {
     return (strcmp(param, "-i") && strcmp(param, "-c"));
 }
 
-void create_dummy_files() {
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
-        char path[100] = "demo";
-        char num[5];
-        snprintf(num, 5, "%d", i);
-        strcat(path, num);
-
-        FILE *fp = fopen(path, "w");
-        fwrite(path, strlen(path), 1, fp);
-        fclose(fp);
+void add_dummy_filename(int num) {
+    for (int i = 0; i <= num; i++) {
+        char path[200] = "demo_test";
+        char n[20];
+        snprintf(n, 6, "%d", i);
+        strcat(path, n);
         memcpy(target_files[i], path, strlen(path));
     }
+}
+
+void evaluate_elapsed_time(double *time) {
+    *time = (double)clock();
+}
+
+void dump_elapsed_time(double time) {
+    FILE *log_fp;
+    char out[100] = "";
+    char timestr[20];
+
+    if ((log_fp = fopen("elapsed_time.txt", "a")) == NULL) {
+        perror("Failed to open log file");
+    }
+
+    snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
+    strcat(timestr, " + ");
+    strcat(out, timestr);
+
+    if (fwrite(out, strlen(out), 1, log_fp) < 0) {
+        perror("Failed to write to log file");
+    }
+
+    fclose(log_fp);
+
+    return;
 }
 
 int main(int argc, char **argv) {
@@ -158,19 +181,31 @@ int main(int argc, char **argv) {
 
     if (argc > 1) {
         if (check_param(argv[1])) {
-            perror("Paramater Invalid");
+            printf("Error: Parameter Invalida\n");
+            exit(1);
         } else {
             type = argv[1];
+            file_nums = atoi(argv[2]);
 
-            if (argv[2]) {
-                if (!strcmp(argv[2], "-d")) {
+            if (argv[3]) {
+                if (!strcmp(argv[3], "-d")) {
                     debug = 1;
+                } else if (!strcmp(argv[3], "-t")) {
+                    test = 1;
+                }
+            }
+
+            if (argv[4]) {
+                if (!strcmp(argv[3], "-d")) {
+                    debug = 1;
+                } else if (!strcmp(argv[3], "-t")) {
+                    test = 1;
                 }
             }
         }
     }
 
-    create_dummy_files();
+    add_dummy_filename(file_nums);
 
     if (!strcmp(type, "-i")) {
         get_all_file_hashes();
@@ -180,18 +215,8 @@ int main(int argc, char **argv) {
         perror("Paramater Invalid");
     }
 
-    time = clock();
-    FILE *timelog;
-    timelog = fopen("demolog.txt", "a");
-    if (timelog == NULL) {
-        timelog = fopen("demolog.txt", "w");
-    }
-    char out[100] = "";
-    char timestr[20];
-    snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
-    strcat(timestr, " + ");
-    strcat(out, timestr);
-    fwrite(out, strlen(out), 1, timelog);
-    fclose(timelog);
+    evaluate_elapsed_time(&time);
+    dump_elapsed_time(time);
+
     return 0;
 }

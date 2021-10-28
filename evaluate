@@ -1,0 +1,18 @@
+max=$1
+file_nums=$2
+name=elapsed_time.txt
+
+touch $name
+echo -e "\n// init" >> $name
+
+for ((i=0; i < $max; i++)); do
+    make clean && make && ./init $file_nums && ./app -i $file_nums -t 
+done
+
+echo -e "\n// check" >> $name
+
+for ((i=0; i < $max; i++)); do
+    ./app -c $file_nums -t 
+done
+
+make clean
