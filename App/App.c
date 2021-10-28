@@ -13,15 +13,17 @@
 #include "utils.h"
 #include "sgx_tseal.h"
 
-#define MAX_FILE_NUMS 10
+#define MAX_FILE_NAME_LENGTH 200
+#define MAX_FILE_NUMS 1000
 #define MAX_FILE_SIZE 104 * 1024 * 500
 #define HASH_SIZE 32
 
 sgx_enclave_id_t eid = 100;
-int file_nums = 0;
+
 char *type = "-c";
 int debug = 0;
-char target_files[MAX_FILE_NUMS][200];
+int file_nums = 0;
+char target_files[MAX_FILE_NUMS][MAX_FILE_NAME_LENGTH];
 
 // ======= utils ==============
 
@@ -80,7 +82,7 @@ void  get_all_files(char *path) {
         i++;
         file_nums = i;
 
-        if (i == MAX_FILE_NUMS)
+        if (i == file_nums)
             break;
     }
 }
@@ -115,6 +117,7 @@ void get_file_hash(int i) {
 
     if ((fp = fopen(path,  "r")) == NULL) {
         print_error_with_path(path, "Failed to open file\n");
+        perror("Error");
         return;
     }
 
@@ -191,7 +194,7 @@ void get_file_hash(int i) {
 void get_all_file_hashes() {
     printf("========== Calculating hash value ==========\n");
 
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
+    for (int i = 0; i < file_nums; i++) {
         get_file_hash(i);
     }
 }
@@ -326,60 +329,53 @@ void check_hash_debug(int i) {
 void check_all_file_hash() {
     printf("========== Checking hash value ==========\n");
 
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
+    for (int i = 0; i < file_nums; i++) {
         if (debug) {
             check_hash_debug(i);
+            //check_hash(i);
         } else {
             check_hash(i);
         }
     }
 }
 
-int check_param(char *param) {
-    return (strcmp(param, "-i") && strcmp(param, "-c"));
-}
-
-void create_dummy_files() {
-    for (int i = 0; i < MAX_FILE_NUMS; i++) {
-        char path[100] = "test";
-        char num[20];
-        snprintf(num, 6, "%d", i);
-        strcat(path, num);
-
-        FILE *fp = fopen(path, "w");
-        
-        for (int j = 0; j < (1024 * 205); j++) {
-            fwrite(path, strlen(path), 1, fp);
-        }
-
-        fclose(fp);
+void add_dummy_filename(int num) {
+    for (int i = 0; i <= num; i++) {
+        char path[MAX_FILE_NAME_LENGTH] = "test";
+        char n[20];
+        snprintf(n, 6, "%d", i);
+        strcat(path, n);
         memcpy(target_files[i], path, strlen(path));
     }
-}
-
-int init_conf_file() {
-    
 }
 
 int main(int argc, char **argv) {
     sgx_status_t err;
     double time;
+
     if (argc > 1) {
         if (check_param(argv[1])) {
-            perror("Paramater Invalid");
+            printf("Error: Parameter Invalida\n");
+            exit(1);
         } else {
             type = argv[1];
 
             if (argv[2]) {
                 if (!strcmp(argv[2], "-d")) {
                     debug = 1;
+                } else {
+                    file_nums = atoi(argv[2]);
                 }
+            }
+
+            if (argv[3]) {
+                file_nums = atoi(argv[3]);
             }
         }
     }
 
     init_enclave();
-    create_dummy_files();
+    add_dummy_filename(file_nums);
 
     if (!strcmp(type, "-i")) {
         get_all_file_hashes();
@@ -389,18 +385,10 @@ int main(int argc, char **argv) {
         perror("Paramater Invalid");
     }
 
-    // time = clock();
-    // FILE *timelog;
-    // timelog = fopen("Demo/demolog.txt", "a");
-    // if (timelog == NULL) {
-    //     timelog = fopen("demolog.txt", "w");
-    // }
-    // char out[100] = "";
-    // char timestr[20];
-    // snprintf(timestr, 100, "%f", time / CLOCKS_PER_SEC);
-    // strcat(timestr, " + ");
-    // strcat(out, timestr);
-    // fwrite(out, strlen(out), 1, timelog);
-    // fclose(timelog);
+    if (debug) {
+        evaluate_elapsed_time(&time);
+        dump_elapsed_time(time);
+    }
+
     return 0;
 }

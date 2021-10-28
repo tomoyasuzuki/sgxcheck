@@ -100,10 +100,13 @@ int calc_hash(char *path, void *buf, size_t buf_size, void *dst, uint32_t dst_si
     if (path == NULL | buf == NULL | dst == NULL)
         return -1;
     
-    if (sgx_sha256_calc(buf, buf_size, (uint8_t*)&(hash[0])) < 0)
+    if (sgx_sha256_calc(buf, buf_size, &hash[0])) {
+        ocall_dump_hash(&hash[0]);
+    } else {
         return -1;
+    }
 
-    if (seal_hash((void*)&(hash[0]), dst) < 0)
+    if (seal_hash(&hash[0],dst) < 0)
         return -1;
 
     return 1;
